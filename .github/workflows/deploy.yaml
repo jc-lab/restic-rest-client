@@ -29,8 +29,8 @@ jobs:
         name: Publish to Central Repository
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
         run: |
           chmod +x gradlew
-          ./gradlew :publishToMavenCentral -Psigning.gnupg.keyName=243D34DB9C8DC5809A818BF105BDFD8B158B5001 -Psigning.gnupg.executable=gpg -Psigning.gnupg.passphrase=${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
+          ./gradlew :publish -Psigning.gnupg.keyName=243D34DB9C8DC5809A818BF105BDFD8B158B5001 -Psigning.gnupg.executable=gpg -PossrhUsername=${{ secrets.OSSRH_TOKEN_USERNAME }} -PossrhPassword=${{ secrets.OSSRH_TOKEN_PASSWORD }} -Psigning.gnupg.passphrase=${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
