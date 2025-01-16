@@ -1,12 +1,10 @@
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("java-library")
-    id("com.vanniktech.maven.publish") version "0.30.0"
     id("signing")
-    id("com.google.protobuf") version "0.9.4"
+    id("maven-publish")
     kotlin("jvm") version Version.KOTLIN
 }
 
@@ -55,32 +53,46 @@ tasks.test {
     useJUnitPlatform()
 }
 
-mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications()
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
 
-    pom {
-        name.set(project.name)
-        description.set("jc-lab")
-        url.set("https://jc-lab.tech")
-        licenses {
-            license {
-                name.set("The Apache License, Version 2.0")
-                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-                distribution.set("repo")
+            pom {
+                name.set(project.name)
+                description.set("jc-lab")
+                url.set("https://jc-lab.tech")
+                licenses {
+                    license {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                        distribution.set("repo")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("jclab")
+                        name.set("Joseph Lee")
+                        email.set("joseph@jc-lab.net")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/jc-lab/restic-rest-client.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/jc-lab/restic-rest-client.git")
+                    url.set("https://github.com/jc-lab/restic-rest-client")
+                }
             }
         }
-        developers {
-            developer {
-                id.set("jclab")
-                name.set("Joseph Lee")
-                email.set("joseph@jc-lab.net")
+    }
+    repositories {
+        maven {
+            val releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            val snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = uri(if ("$version".endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl)
+            credentials {
+                username = findProperty("ossrhUsername") as String?
+                password = findProperty("ossrhPassword") as String?
             }
-        }
-        scm {
-            connection.set("scm:git:https://github.com/jc-lab/restic-rest-client.git")
-            developerConnection.set("scm:git:ssh://git@github.com/jc-lab/restic-rest-client.git")
-            url.set("https://github.com/jc-lab/restic-rest-client")
         }
     }
 }
