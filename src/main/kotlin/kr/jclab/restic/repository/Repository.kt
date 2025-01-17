@@ -1,6 +1,8 @@
 package kr.jclab.restic.repository
 
 import com.github.luben.zstd.Zstd
+import com.github.luben.zstd.ZstdCompressCtx
+import com.github.luben.zstd.ZstdException
 import com.github.luben.zstd.ZstdInputStream
 import kr.jclab.restic.backend.Backend
 import kr.jclab.restic.backend.FileType
@@ -13,6 +15,7 @@ import kr.jclab.restic.model.ResticId
 import kr.jclab.restic.util.FutureLoop
 import org.apache.commons.io.IOUtils
 import java.io.ByteArrayInputStream
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 class Repository(
@@ -22,6 +25,8 @@ class Repository(
     private var config: Config? = null
 
     companion object {
+        private val COMPRESSION_HEADER_SIZE = 1
+
         private val objectMapper = JacksonHolder.OBJECT_MAPPER
     }
 
@@ -118,6 +123,24 @@ class Repository(
             }
     }
 
+    fun addKey(
+        password: String,
+        username: String?,
+        hostname: String?,
+    ): CompletableFuture<Key> {
+        return ensureOpen()
+            .thenCompose {
+                val newKey = Key.create(
+                    password = password,
+                    username = username,
+                    hostname = hostname,
+                    template = this.key!!.master!!,
+                )
+                saveRaw(FileType.KeyFile, newKey.id!!, newKey.raw!!)
+                    .thenApply { _ -> newKey }
+            }
+    }
+
     fun loadRaw(fileType: FileType, id: ResticId): CompletableFuture<ByteArray> {
         return backend.loadRaw(Handle(fileType, false, id.toString()))
             .thenApply {
@@ -131,6 +154,16 @@ class Repository(
 
     fun saveRaw(fileType: FileType, id: ResticId, buf: ByteArray): CompletableFuture<Void?> {
         return backend.save(Handle(fileType, false, id.toString()), RewindInputStream.from(buf), buf.size)
+    }
+
+    private fun ensureOpen(): CompletableFuture<Void?> {
+        val promise = CompletableFuture<Void?>()
+        if (isOpen()) {
+            promise.complete(null)
+        } else {
+            promise.completeExceptionally(IllegalStateException("repository is not opened"))
+        }
+        return promise
     }
 
     private fun loadUnpacked(fileType: FileType, id: ResticId, key: Crypto.Key): CompletableFuture<ByteArray> {
@@ -187,10 +220,22 @@ class Repository(
         }
     }
 
-    private fun compressUnpacked(p: ByteArray): ByteArray {
+    private fun compressUnpacked(src: ByteArray): ByteArray {
         if (config!!.version < 2) {
-            return p
+            return src
         }
-        return byteArrayOf(2) + Zstd.compress(p)
+
+        return ZstdCompressCtx().use { ctx ->
+            ctx.setLevel(Zstd.defaultCompressionLevel())
+
+            val maxDstSize = Zstd.compressBound(src.size.toLong())
+            if (maxDstSize > Int.MAX_VALUE) {
+                throw ZstdException(Zstd.errGeneric(), "Max output size is greater than MAX_INT")
+            }
+            val dst = ByteArray(COMPRESSION_HEADER_SIZE + maxDstSize.toInt())
+            dst[0] = 2
+            val size: Int = ctx.compressByteArray(dst, COMPRESSION_HEADER_SIZE, dst.size - COMPRESSION_HEADER_SIZE, src, 0, src.size)
+            Arrays.copyOfRange(dst, 0, COMPRESSION_HEADER_SIZE + size)
+        }
     }
 }
