@@ -68,7 +68,6 @@ object Crypto {
             val cipher = createCipher(Cipher.ENCRYPT_MODE, encryptionKey.bytes, nonce)
             val ciphertext = cipher.doFinal(plaintext)
 
-            println("ciphertext(A): ${Hex.toHexString(ciphertext)}")
             val mac = poly1305MAC(ciphertext, nonce, macKey)
 
             return ciphertext + mac
@@ -92,7 +91,6 @@ object Crypto {
             val ct = ciphertext.copyOfRange(0, l)
             val mac = ciphertext.copyOfRange(l, ciphertext.size)
 
-            println("ciphertext(B): ${Hex.toHexString(ciphertext)}")
             if (!poly1305Verify(ct, nonce, macKey, mac)) {
                 throw UnauthenticatedError("ciphertext verification failed")
             }
