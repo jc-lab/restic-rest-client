@@ -36,6 +36,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("org.mockito:mockito-core:5.15.2")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.assertj:assertj-core:3.27.3")
 
     implementation("com.github.spotbugs:spotbugs-annotations:4.8.6")
     implementation("com.github.luben:zstd-jni:1.5.6-9")
@@ -45,10 +46,11 @@ dependencies {
     api("commons-io:commons-io:2.18.0")
     api("org.apache.httpcomponents.client5:httpclient5:5.4.1")
 
-    api("com.fasterxml.jackson.core:jackson-core:2.18.2")
-    api("com.fasterxml.jackson.core:jackson-annotations:2.18.2")
-    api("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-    api("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+    api("com.fasterxml.jackson.core:jackson-core:${Version.JACKSON}")
+    api("com.fasterxml.jackson.core:jackson-annotations:${Version.JACKSON}")
+    api("com.fasterxml.jackson.core:jackson-databind:${Version.JACKSON}")
+    api("com.fasterxml.jackson.module:jackson-module-kotlin:${Version.JACKSON}")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${Version.JACKSON}")
 }
 
 tasks.test {

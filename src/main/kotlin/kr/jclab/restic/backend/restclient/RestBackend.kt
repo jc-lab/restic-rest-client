@@ -1,9 +1,10 @@
 package kr.jclab.restic.backend.restclient
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import kr.jclab.restic.backend.*
-import kr.jclab.restic.repository.RepositoryAlreadyExistsError
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse
 import org.apache.hc.client5.http.async.methods.SimpleRequestBuilder
 import org.apache.hc.client5.http.async.methods.SimpleRequestProducer
@@ -22,12 +23,17 @@ class RestBackend(
     private val httpClient: CloseableHttpAsyncClient,
     baseURI: URI,
     auth: HttpAuth? = null,
+    private val objectMapper: ObjectMapper = createObjectMapper(),
 ) : Backend {
-    private val objectMapper = jacksonObjectMapper()
-
     companion object {
         const val CONTENT_TYPE_V1 = "application/vnd.x.restic.rest.v1"
         const val CONTENT_TYPE_V2 = "application/vnd.x.restic.rest.v2"
+
+        fun createObjectMapper(): ObjectMapper {
+            val objectMapper = jacksonObjectMapper()
+            objectMapper.registerModules(JavaTimeModule())
+            return objectMapper
+        }
     }
 
     private val auth: HttpAuth? = auth ?: baseURI.userInfo?.let { userInfo ->
