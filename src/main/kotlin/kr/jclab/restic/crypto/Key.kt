@@ -17,6 +17,7 @@ data class Key(
     @field:JsonProperty("created")
     @field:JsonSerialize(using = ISO8601.ISO8601Serializer::class)
     @field:JsonDeserialize(using = ISO8601.ISO8601Deserializer::class)
+    @JsonDeserialize(using = ISO8601.ISO8601Deserializer::class)
     val created: Instant,
 
     @field:JsonProperty("username")
