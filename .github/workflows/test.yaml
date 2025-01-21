@@ -1,0 +1,24 @@
+name: Test Only
+on:
+  push: {}
+jobs:
+  java-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: [8, 11, 17]
+    steps:
+      - name: Set Environment Variables
+        run: |
+          echo "runner_arch=$(uname -m)" >> $GITHUB_ENV
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: ${{ matrix.java-version }}
+          cache: 'gradle'
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew build test
