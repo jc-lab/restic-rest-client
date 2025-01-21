@@ -1,5 +1,6 @@
 package kr.jclab.restic.repository
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.luben.zstd.Zstd
 import com.github.luben.zstd.ZstdCompressCtx
 import com.github.luben.zstd.ZstdException
@@ -20,14 +21,13 @@ import java.util.concurrent.CompletableFuture
 
 class Repository(
     val backend: Backend,
+    val objectMapper: ObjectMapper = JacksonHolder.OBJECT_MAPPER,
 ) {
     private var key: Key? = null
     private var config: Config? = null
 
     companion object {
         private val COMPRESSION_HEADER_SIZE = 1
-
-        private val objectMapper = JacksonHolder.OBJECT_MAPPER
     }
 
     fun getKeys(): CompletableFuture<List<Key>> {
@@ -95,8 +95,8 @@ class Repository(
                         this.config = config
                         this.key = key
                         CompletableFuture.allOf(
-                            saveRaw(FileType.KeyFile, key.id!!, key.raw!!),
-                            saveUnpacked(FileType.ConfigFile, key.master!!, objectMapper.writeValueAsBytes(config))
+                            saveRaw(FileType.KeyFile, key.id, key.raw),
+                            saveUnpacked(FileType.ConfigFile, key.master, objectMapper.writeValueAsBytes(config))
                         )
                     }
             }
@@ -108,7 +108,7 @@ class Repository(
             throw IllegalStateException("key is not opened")
         }
 
-        return loadUnpacked(FileType.ConfigFile, ResticId(), key.master!!)
+        return loadUnpacked(FileType.ConfigFile, ResticId(), key.master)
             .thenApply {
                 val config = objectMapper.readValue(it, Config::class.java)
                 if (config.version < Config.MinRepoVersion || config.version > Config.MaxRepoVersion) {
@@ -131,12 +131,13 @@ class Repository(
         return ensureOpen()
             .thenCompose {
                 val newKey = Key.create(
+                    objectMapper = objectMapper,
                     password = password,
                     username = username,
                     hostname = hostname,
-                    template = this.key!!.master!!,
+                    template = this.key!!.master,
                 )
-                saveRaw(FileType.KeyFile, newKey.id!!, newKey.raw!!)
+                saveRaw(FileType.KeyFile, newKey.id, newKey.raw)
                     .thenApply { _ -> newKey }
             }
     }

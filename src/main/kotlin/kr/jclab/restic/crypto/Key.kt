@@ -2,11 +2,10 @@ package kr.jclab.restic.crypto
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
-import kr.jclab.restic.backend.Backend
 import kr.jclab.restic.backend.FileType
-import kr.jclab.restic.backend.Handle
 import kr.jclab.restic.jackson.ISO8601
 import kr.jclab.restic.jackson.JacksonHolder
 import kr.jclab.restic.model.ResticId
@@ -46,6 +45,7 @@ data class Key(
 ) {
     companion object {
         fun create(
+            objectMapper: ObjectMapper,
             password: String,
             username: String?,
             hostname: String?,
@@ -57,7 +57,7 @@ data class Key(
             val user = CryptoUtils.kdf(params, salt, password)
             val master = template ?: Crypto.newRandomKey()
 
-            val masterJson = JacksonHolder.OBJECT_MAPPER.writeValueAsBytes(master)
+            val masterJson = objectMapper.writeValueAsBytes(master)
             val nonce = Crypto.newRandomNonce()
             val ciphertext = user.seal(nonce, masterJson, null)
 
@@ -72,11 +72,11 @@ data class Key(
                 salt = salt,
                 data = nonce + ciphertext,
             )
-            key.master = master
-            key.user = user
-            val raw = JacksonHolder.OBJECT_MAPPER.writeValueAsBytes(key)
-            key.id = ResticId.hash(raw)
-            key.raw = raw
+            key.privateMaster = master
+            key.privateUser = user
+            val raw = objectMapper.writeValueAsBytes(key)
+            key.privateId = ResticId.hash(raw)
+            key.privateRaw = raw
 
             return key
         }
@@ -84,32 +84,44 @@ data class Key(
         fun loadKey(r: Repository, id: ResticId): CompletableFuture<Key> {
             return r.loadRaw(FileType.KeyFile, id)
                 .thenApply { raw ->
-                    val key = JacksonHolder.OBJECT_MAPPER.readValue(raw, Key::class.java)
-                    key.raw = raw
-                    key.id = id
+                    val key = r.objectMapper.readValue(raw, Key::class.java)
+                    key.privateRaw = raw
+                    key.privateId = id
                     key
                 }
         }
     }
 
     @field:JsonIgnore
-    var user: Crypto.Key? = null
+    private var privateUser: Crypto.Key? = null
     @field:JsonIgnore
-    var master: Crypto.Key? = null
+    private var privateMaster: Crypto.Key? = null
     @field:JsonIgnore
-    var id: ResticId? = null
+    private var privateId: ResticId? = null
     @field:JsonIgnore
-    var raw: ByteArray? = null
+    private var privateRaw: ByteArray? = null
+
+    @get:JsonIgnore
+    val id: ResticId
+        get() = privateId!!
+
+    @get:JsonIgnore
+    val master: Crypto.Key
+        get() = privateMaster!!
+
+    @get:JsonIgnore
+    val raw: ByteArray
+        get() = privateRaw!!
 
     fun valid(): Boolean =
-        user?.valid() == true && master?.valid() == true
+        privateUser?.valid() == true && privateMaster?.valid() == true
 
     override fun toString(): String =
         "<Key of $username@$hostname, created on $created>"
 
     @JsonIgnore
     fun isOpen(): Boolean {
-        return this.id != null && this.user != null && this.master != null
+        return this.privateId != null && this.privateUser != null && this.privateMaster != null
     }
 
     fun openKey(
@@ -125,8 +137,8 @@ data class Key(
         val ciphertext = data.copyOfRange(user.nonceSize(), data.size)
         val buf = user.open(nonce, ciphertext)
 
-        this.user = user
-        this.master = JacksonHolder.OBJECT_MAPPER.readValue(buf, Crypto.Key::class.java)
+        this.privateUser = user
+        this.privateMaster = JacksonHolder.OBJECT_MAPPER.readValue(buf, Crypto.Key::class.java)
 
         if (!valid()) {
             throw RuntimeException("invalid key for repository")
