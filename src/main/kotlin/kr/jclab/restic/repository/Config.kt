@@ -18,6 +18,7 @@ data class Config(
     @field:JsonProperty("chunker_polynomial")
     @field:JsonSerialize(using = PolJackson.PolSerializer::class)
     @field:JsonDeserialize(using = PolJackson.PolDeserializer::class)
+    @get:JsonSerialize(using = PolJackson.PolSerializer::class)
     val chunkerPolynomial: Pol,
 ) {
     companion object {
@@ -36,7 +37,9 @@ data class Config(
                 version = version,
                 id = id,
                 chunkerPolynomial = polynomial
-            )
+            ).also {
+                it.validate()
+            }
         }
     }
 
