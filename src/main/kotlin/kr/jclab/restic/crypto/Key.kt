@@ -1,6 +1,7 @@
 package kr.jclab.restic.crypto
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
@@ -13,6 +14,7 @@ import kr.jclab.restic.repository.Repository
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class Key(
     @field:JsonProperty("created")
     @field:JsonSerialize(using = ISO8601.ISO8601Serializer::class)
@@ -43,14 +45,18 @@ data class Key(
 
     @field:JsonProperty("data")
     val data: ByteArray,
+
+    @field:JsonProperty("attr")
+    val attributes: Map<String, Any?>? = null,
 ) {
     companion object {
         fun create(
             objectMapper: ObjectMapper,
             password: String,
-            username: String?,
-            hostname: String?,
-            template: Crypto.Key?
+            username: String? = null,
+            hostname: String? = null,
+            template: Crypto.Key? = null,
+            attributes: Map<String, Any?>? = null,
         ): Key {
             val params = KeyUtils.getParams()
 
@@ -72,6 +78,7 @@ data class Key(
                 p = params.p,
                 salt = salt,
                 data = nonce + ciphertext,
+                attributes = attributes,
             )
             key.privateMaster = master
             key.privateUser = user
