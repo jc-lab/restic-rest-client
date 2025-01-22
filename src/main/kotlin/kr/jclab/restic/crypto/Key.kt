@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import kr.jclab.restic.backend.FileType
 import kr.jclab.restic.jackson.ISO8601
-import kr.jclab.restic.jackson.JacksonHolder
 import kr.jclab.restic.model.ResticId
 import kr.jclab.restic.repository.Repository
 import java.time.Instant
@@ -133,6 +132,7 @@ data class Key(
     }
 
     fun openKey(
+        objectMapper: ObjectMapper,
         password: String,
     ) {
         if (kdf != "scrypt") {
@@ -146,7 +146,7 @@ data class Key(
         val buf = user.open(nonce, ciphertext)
 
         this.privateUser = user
-        this.privateMaster = JacksonHolder.OBJECT_MAPPER.readValue(buf, Crypto.Key::class.java)
+        this.privateMaster = objectMapper.readValue(buf, Crypto.Key::class.java)
 
         if (!valid()) {
             throw RuntimeException("invalid key for repository")

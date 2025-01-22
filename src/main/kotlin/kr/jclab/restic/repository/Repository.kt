@@ -103,9 +103,15 @@ class Repository(
         }
     }
 
-    fun open(key: Key): CompletableFuture<Void?> {
+    fun open(key: Key, password: String? = null): CompletableFuture<Void?> {
         if (!key.isOpen()) {
-            throw IllegalStateException("key is not opened")
+            try {
+                key.openKey(objectMapper, password ?: throw IllegalStateException("key is not opened"))
+            } catch (e: Throwable) {
+                return CompletableFuture<Void?>().apply {
+                    completeExceptionally(e)
+                }
+            }
         }
 
         return loadUnpacked(FileType.ConfigFile, ResticId(), key.master)
@@ -127,6 +133,7 @@ class Repository(
         password: String,
         username: String?,
         hostname: String?,
+        attributes: Map<String, Any?>? = null,
     ): CompletableFuture<Key> {
         return ensureOpen()
             .thenCompose {
@@ -136,6 +143,7 @@ class Repository(
                     username = username,
                     hostname = hostname,
                     template = this.key!!.master,
+                    attributes = attributes,
                 )
                 saveRaw(FileType.KeyFile, newKey.id, newKey.raw)
                     .thenApply { _ -> newKey }
